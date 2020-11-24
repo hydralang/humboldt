@@ -14,21 +14,35 @@
 
 package conduit
 
+// Event indicates what sort of event occurred on the conduit.
+type Event int
+
+// Defined conduit events.
+const (
+	Received    Event = iota // Data was received from the conduit
+	Closed                   // The conduit was closed
+	Error                    // An error occurred
+	Active                   // A new active conduit has been created
+	Passive                  // A new passive conduit has been created
+	DialError                // An error occurred while dialing
+	ListenError              // The listener produced an error
+)
+
 // Conduit is a description of an active conduit to a client or a
 // peer.
 type Conduit struct {
-	Encrypted bool        // Flag indicating conduit is encrypted
-	Integrity bool        // Flag indicating conduit is integrity-protected
-	Principal string      // Name of the principal from security layer
-	Strength  uint32      // Estimate of the encryption strength
-	MinProto  uint32      // Minimum protocol version
-	MaxProto  uint32      // Maximum protocol version
-	Proto     uint32      // Selected protocol version
-	LocalURI  *URI        // Local conduit
-	RemoteURI *URI        // Remote conduit
-	RTT       uint32      // Estimated round-trip time
-	Deviation uint32      // Estimated round-trip time deviation
-	Peer      interface{} // Peer or client description
+	Confidential bool        // Flag indicating conduit is confidential
+	Integrity    bool        // Flag indicating conduit is integrity-protected
+	Principal    string      // Name of the principal from security layer
+	Strength     uint32      // Estimate of the encryption strength
+	MinProto     uint32      // Minimum protocol version
+	MaxProto     uint32      // Maximum protocol version
+	Proto        uint32      // Selected protocol version
+	LocalURI     *URI        // Local conduit
+	RemoteURI    *URI        // Remote conduit
+	RTT          uint32      // Estimated round-trip time
+	Deviation    uint32      // Estimated round-trip time deviation
+	Peer         interface{} // Peer or client description
 
 	link link // The actual link; used to send messages and close conduit
 }
