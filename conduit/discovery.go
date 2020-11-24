@@ -25,3 +25,8 @@ type Discovery interface {
 
 // discMechs is a registry of discovery mechanisms.
 var discMechs = map[string]Discovery{}
+
+// RegisterDiscovery registers a discovery mechanism.
+func RegisterDiscovery(name string, mech Discovery) {
+	discMechs[name] = mech
+}

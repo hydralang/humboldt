@@ -15,6 +15,7 @@
 package conduit
 
 import (
+	"net"
 	"testing"
 
 	"github.com/klmitch/patcher"
@@ -22,27 +23,37 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type mockDiscovery struct {
+type mockSecurity struct {
 	mock.Mock
 }
 
-func (m *mockDiscovery) Discover(u *URI) ([]*URI, error) {
-	args := m.MethodCalled("Discover", u)
+func (m *mockSecurity) Dial(config interface{}, u *URI, xport Transport) (net.Conn, error) {
+	args := m.MethodCalled("Dial", config, u, xport)
 
 	if tmp := args.Get(0); tmp != nil {
-		return tmp.([]*URI), args.Error(1)
+		return tmp.(net.Conn), args.Error(1)
 	}
 
 	return nil, args.Error(1)
 }
 
-func TestRegisterDiscovery(t *testing.T) {
-	mech := &mockDiscovery{}
-	defer patcher.SetVar(&discMechs, map[string]Discovery{}).Install().Restore()
+func (m *mockSecurity) Listen(config interface{}, u *URI, xport Transport) (net.Listener, error) {
+	args := m.MethodCalled("Listen", config, u, xport)
 
-	RegisterDiscovery("test", mech)
+	if tmp := args.Get(0); tmp != nil {
+		return tmp.(net.Listener), args.Error(1)
+	}
 
-	assert.Equal(t, map[string]Discovery{
+	return nil, args.Error(1)
+}
+
+func TestRegisterSecurity(t *testing.T) {
+	mech := &mockSecurity{}
+	defer patcher.SetVar(&secMechs, map[string]Security{}).Install().Restore()
+
+	RegisterSecurity("test", mech)
+
+	assert.Equal(t, map[string]Security{
 		"test": mech,
-	}, discMechs)
+	}, secMechs)
 }

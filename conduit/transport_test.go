@@ -15,6 +15,7 @@
 package conduit
 
 import (
+	"net"
 	"testing"
 
 	"github.com/klmitch/patcher"
@@ -22,27 +23,37 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type mockDiscovery struct {
+type mockTransport struct {
 	mock.Mock
 }
 
-func (m *mockDiscovery) Discover(u *URI) ([]*URI, error) {
-	args := m.MethodCalled("Discover", u)
+func (m *mockTransport) Dial(config interface{}, u *URI) (net.Conn, error) {
+	args := m.MethodCalled("Dial", config, u)
 
 	if tmp := args.Get(0); tmp != nil {
-		return tmp.([]*URI), args.Error(1)
+		return tmp.(net.Conn), args.Error(1)
 	}
 
 	return nil, args.Error(1)
 }
 
-func TestRegisterDiscovery(t *testing.T) {
-	mech := &mockDiscovery{}
-	defer patcher.SetVar(&discMechs, map[string]Discovery{}).Install().Restore()
+func (m *mockTransport) Listen(config interface{}, u *URI) (net.Listener, error) {
+	args := m.MethodCalled("Listen", config, u)
 
-	RegisterDiscovery("test", mech)
+	if tmp := args.Get(0); tmp != nil {
+		return tmp.(net.Listener), args.Error(1)
+	}
 
-	assert.Equal(t, map[string]Discovery{
+	return nil, args.Error(1)
+}
+
+func TestRegisterTransport(t *testing.T) {
+	mech := &mockTransport{}
+	defer patcher.SetVar(&transMechs, map[string]Transport{}).Install().Restore()
+
+	RegisterTransport("test", mech)
+
+	assert.Equal(t, map[string]Transport{
 		"test": mech,
-	}, discMechs)
+	}, transMechs)
 }
