@@ -24,7 +24,7 @@ type Security interface {
 	// connection-oriented, the conduit will still be in the
 	// appropriate state.  The security layer is also passed the
 	// transport to use to open the actual connection.
-	Dial(config interface{}, u *URI, xport Transport) (net.Conn, error)
+	Dial(config interface{}, u *URI, xport Transport) (Conn, error)
 
 	// Listen opens a transport in passive mode; that is, for
 	// connection-oriented transports, Listen creates a listener

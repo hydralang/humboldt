@@ -27,11 +27,11 @@ type mockSecurity struct {
 	mock.Mock
 }
 
-func (m *mockSecurity) Dial(config interface{}, u *URI, xport Transport) (net.Conn, error) {
+func (m *mockSecurity) Dial(config interface{}, u *URI, xport Transport) (Conn, error) {
 	args := m.MethodCalled("Dial", config, u, xport)
 
 	if tmp := args.Get(0); tmp != nil {
-		return tmp.(net.Conn), args.Error(1)
+		return tmp.(Conn), args.Error(1)
 	}
 
 	return nil, args.Error(1)

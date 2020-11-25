@@ -27,11 +27,11 @@ type mockTransport struct {
 	mock.Mock
 }
 
-func (m *mockTransport) Dial(config interface{}, u *URI) (net.Conn, error) {
+func (m *mockTransport) Dial(config interface{}, u *URI) (Conn, error) {
 	args := m.MethodCalled("Dial", config, u)
 
 	if tmp := args.Get(0); tmp != nil {
-		return tmp.(net.Conn), args.Error(1)
+		return tmp.(Conn), args.Error(1)
 	}
 
 	return nil, args.Error(1)

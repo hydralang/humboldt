@@ -23,7 +23,7 @@ type Transport interface {
 	// connection.  For those transports that are not
 	// connection-oriented, the conduit will still be in the
 	// appropriate state.
-	Dial(config interface{}, u *URI) (net.Conn, error)
+	Dial(config interface{}, u *URI) (Conn, error)
 
 	// Listen opens a transport in passive mode; that is, for
 	// connection-oriented transports, Listen creates a listener
