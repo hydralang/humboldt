@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Kevin L. Mitchell
+// Copyright (c) 2021 Kevin L. Mitchell
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you
 // may not use this file except in compliance with the License.  You
@@ -14,33 +14,17 @@
 
 package conduit
 
-import (
-	"testing"
+// Listener is a variation on the net.Listener interface that returns
+// Conduit objects instead of net.Conn objects.
+type Listener interface {
+	// Accept waits for and returns the next conduit to the
+	// listener.
+	Accept() (*Conduit, error)
 
-	"github.com/stretchr/testify/assert"
-)
+	// Close closes the listener.  Any blocked Accept operations
+	// will be unblocked and return errors.
+	Close() error
 
-func TestConduitSend(t *testing.T) {
-	link := &mockLink{}
-	link.On("Send", []byte("msg")).Return(assert.AnError)
-	obj := Conduit{
-		link: link,
-	}
-
-	err := obj.Send([]byte("msg"))
-
-	assert.Same(t, assert.AnError, err)
-	link.AssertExpectations(t)
-}
-
-func TestConduitClose(t *testing.T) {
-	link := &mockLink{}
-	link.On("Close")
-	obj := Conduit{
-		link: link,
-	}
-
-	obj.Close()
-
-	link.AssertExpectations(t)
+	// Addr returns the listener's network URI.
+	Addr() *URI
 }

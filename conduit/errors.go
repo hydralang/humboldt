@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Kevin L. Mitchell
+// Copyright (c) 2021 Kevin L. Mitchell
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you
 // may not use this file except in compliance with the License.  You
@@ -19,4 +19,7 @@ import "errors"
 // Common simple errors that may be returned by the conduit package.
 var (
 	ErrUnknownDiscovery = errors.New("unknown discovery mechanism")
+	ErrUnknownSecurity  = errors.New("unknown security layer mechanism")
+	ErrUnknownTransport = errors.New("unknown transport mechanism")
+	ErrNotCanonical     = errors.New("URI is not canonical")
 )

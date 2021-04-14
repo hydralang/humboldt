@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Kevin L. Mitchell
+// Copyright (c) 2021 Kevin L. Mitchell
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you
 // may not use this file except in compliance with the License.  You
@@ -14,53 +14,36 @@
 
 package conduit
 
-// Event indicates what sort of event occurred on the conduit.
-type Event int
+import "net"
 
-// Defined conduit events.
+// State indicates the state the conduit is in.
+type State int
+
+// Defined conduit states.
 const (
-	Received    Event = iota // Data was received from the conduit
-	Closed                   // The conduit was closed
-	Error                    // An error occurred
-	Active                   // A new active conduit has been created
-	Passive                  // A new passive conduit has been created
-	DialError                // An error occurred while dialing
-	ListenError              // The listener produced an error
+	Undefined State = iota // Conduit is in an undefined state
+	Active                 // Conduit is new outgoing conduit
+	Passive                // Conduit is new incoming conduit
+	Open                   // Conduit is fully established and open
+	Closed                 // Conduit has been closed
+	Error                  // Conduit has received an error
 )
 
-// Info collects together conduit-specific information that will be
-// associated with the underlying connection (Conn).
-type Info struct {
-	Confidential bool   // Flag indicating conduit is confidential
-	Integrity    bool   // Flag indicating conduit is integrity-protected
-	Principal    string // Name of the principal from security layer
-	Strength     uint32 // Estimate of the encryption strength
-	LocalURI     *URI   // Local conduit URI
-	RemoteURI    *URI   // Remote conduit URI
-}
-
-// Conduit is a description of an active conduit to a client or a
-// peer.
+// Conduit describes an established conduit.
 type Conduit struct {
-	Info                  // Conduit-specific information from Conn
-	MinProto  uint32      // Minimum protocol version
-	MaxProto  uint32      // Maximum protocol version
-	Proto     uint32      // Selected protocol version
-	RTT       uint32      // Estimated round-trip time
-	Deviation uint32      // Estimated round-trip time deviation
-	Peer      interface{} // Peer or client description
-
-	link link // The actual link; used to send messages and close conduit
-}
-
-// Send sends a message over the conduit to the peer, whether a client
-// or another Humboldt node.
-func (c *Conduit) Send(msg []byte) error {
-	return c.link.Send(msg)
-}
-
-// Close closes the conduit.  A notification will be sent to the
-// protocol processor indicating that the conduit has been closed.
-func (c *Conduit) Close() {
-	c.link.Close()
+	State        State       // The state the conduit is in
+	Error        error       // When in Error state, this contains the error
+	MinProto     uint32      // Minimum supported protocol version
+	MaxProto     uint32      // Maximum supported protocol version
+	Proto        uint32      // Selected protocol version
+	RTT          uint32      // Estimated round-trip time
+	Deviation    uint32      // Estimated round-trip time deviation
+	Peer         interface{} // Peer or client description
+	Confidential bool        // Flag indicating conduit is confidential
+	Integrity    bool        // Flag indicating conduit is integrity-protected
+	Principal    string      // Name of the principal from security layer
+	Strength     uint32      // Estimate of the encryption strength
+	LocalURI     *URI        // Local conduit URI
+	RemoteURI    *URI        // Remote conduit URI
+	Link         net.Conn    // Network connection
 }

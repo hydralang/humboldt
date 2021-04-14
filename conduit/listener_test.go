@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Kevin L. Mitchell
+// Copyright (c) 2021 Kevin L. Mitchell
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you
 // may not use this file except in compliance with the License.  You
@@ -14,35 +14,34 @@
 
 package conduit
 
-import (
-	"testing"
+import "github.com/stretchr/testify/mock"
 
-	"github.com/klmitch/patcher"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-)
-
-type mockDiscovery struct {
+type mockListener struct {
 	mock.Mock
 }
 
-func (m *mockDiscovery) Discover(u *URI) ([]*URI, error) {
-	args := m.MethodCalled("Discover", u)
+func (m *mockListener) Accept() (*Conduit, error) {
+	args := m.MethodCalled("Accept")
 
 	if tmp := args.Get(0); tmp != nil {
-		return tmp.([]*URI), args.Error(1)
+		return tmp.(*Conduit), args.Error(1)
 	}
 
 	return nil, args.Error(1)
 }
 
-func TestRegisterDiscovery(t *testing.T) {
-	mech := &mockDiscovery{}
-	defer patcher.SetVar(&discMechs, map[string]Discovery{}).Install().Restore()
+func (m *mockListener) Close() error {
+	args := m.MethodCalled("Close")
 
-	RegisterDiscovery("test", mech)
+	return args.Error(0)
+}
 
-	assert.Equal(t, map[string]Discovery{
-		"test": mech,
-	}, discMechs)
+func (m *mockListener) Addr() *URI {
+	args := m.MethodCalled("Addr")
+
+	if tmp := args.Get(0); tmp != nil {
+		return tmp.(*URI)
+	}
+
+	return nil
 }

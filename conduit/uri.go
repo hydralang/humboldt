@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Kevin L. Mitchell
+// Copyright (c) 2020, 2021 Kevin L. Mitchell
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you
 // may not use this file except in compliance with the License.  You
@@ -167,4 +167,92 @@ func (u *URI) Canonicalize() ([]*URI, error) {
 	}
 
 	return URIs, nil
+}
+
+// Dial opens a conduit in active mode; that is, for
+// connection-oriented transports, Dial causes initiation of a
+// connection.  For those transports that are not connection-oriented,
+// the conduit will still be in the appropriate state.
+func (u *URI) Dial(config interface{}) (*Conduit, error) {
+	if !u.IsCanonical() {
+		return nil, fmt.Errorf("%s: %w", u, ErrNotCanonical)
+	}
+
+	// Make sure there's a transport mechanism
+	if u.Transport == "" {
+		return nil, fmt.Errorf("%s: %q: %w", u, u.Transport, ErrUnknownTransport)
+	}
+
+	// Is there a security layer?
+	if u.Security != "" {
+		if mech := lookupSecurity(u.Security); mech != nil {
+			return mech.Dial(config, u)
+		}
+		return nil, fmt.Errorf("%s: %q: %w", u, u.Security, ErrUnknownSecurity)
+	}
+
+	if mech := lookupTransport(u.Transport); mech != nil {
+		return mech.Dial(config, u)
+	}
+	return nil, fmt.Errorf("%s: %q: %w", u, u.Transport, ErrUnknownTransport)
+}
+
+// Listen opens a transport in passive mode; that is, for
+// connection-oriented transports, Listen creates a listener that may
+// accept connections.  For those transports that are not
+// connection-oriented, the listener synthesizes the appropriate
+// state.
+func (u *URI) Listen(config interface{}) (Listener, error) {
+	if !u.IsCanonical() {
+		return nil, fmt.Errorf("%s: %w", u, ErrNotCanonical)
+	}
+
+	// Make sure there's a transport mechanism
+	if u.Transport == "" {
+		return nil, fmt.Errorf("%s: %q: %w", u, u.Transport, ErrUnknownTransport)
+	}
+
+	// Is there a security layer?
+	if u.Security != "" {
+		if mech := lookupSecurity(u.Security); mech != nil {
+			return mech.Listen(config, u)
+		}
+		return nil, fmt.Errorf("%s: %q: %w", u, u.Security, ErrUnknownSecurity)
+	}
+
+	if mech := lookupTransport(u.Transport); mech != nil {
+		return mech.Listen(config, u)
+	}
+	return nil, fmt.Errorf("%s: %q: %w", u, u.Transport, ErrUnknownTransport)
+}
+
+// Dial opens a conduit in active mode; that is, for
+// connection-oriented transports, Dial causes initiation of a
+// connection.  For those transports that are not connection-oriented,
+// the conduit will still be in the appropriate state.
+func Dial(config interface{}, uri string) (*Conduit, error) {
+	// Parse the URI
+	u, err := Parse(uri)
+	if err != nil {
+		return nil, err
+	}
+
+	// Dial it
+	return u.Dial(config)
+}
+
+// Listen opens a transport in passive mode; that is, for
+// connection-oriented transports, Listen creates a listener that may
+// accept connections.  For those transports that are not
+// connection-oriented, the listener synthesizes the appropriate
+// state.
+func Listen(config interface{}, uri string) (Listener, error) {
+	// Parse the URI
+	u, err := Parse(uri)
+	if err != nil {
+		return nil, err
+	}
+
+	// Dial it
+	return u.Listen(config)
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Kevin L. Mitchell
+// Copyright (c) 2021 Kevin L. Mitchell
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you
 // may not use this file except in compliance with the License.  You
@@ -18,6 +18,8 @@ import "net"
 
 // Patch points for isolating functions during testing.
 var (
-	lookupIP   func(string) ([]net.IP, error)    = net.LookupIP
-	lookupPort func(string, string) (int, error) = net.LookupPort
+	lookupIP        func(string) ([]net.IP, error)    = net.LookupIP
+	lookupPort      func(string, string) (int, error) = net.LookupPort
+	lookupSecurity  func(string) Mechanism            = LookupSecurity
+	lookupTransport func(string) Mechanism            = LookupTransport
 )

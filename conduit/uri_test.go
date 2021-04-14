@@ -1,4 +1,4 @@
-// Copyright (c) 2020 Kevin L. Mitchell
+// Copyright (c) 2020, 2021 Kevin L. Mitchell
 //
 // Licensed under the Apache License, Version 2.0 (the "License"); you
 // may not use this file except in compliance with the License.  You
@@ -15,13 +15,13 @@
 package conduit
 
 import (
-	"errors"
 	"net"
 	"net/url"
 	"testing"
 
 	"github.com/klmitch/patcher"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestParseBase(t *testing.T) {
@@ -82,7 +82,7 @@ func TestParsePathological(t *testing.T) {
 func TestParseError(t *testing.T) {
 	result, err := Parse("://127.0.0.1:1234")
 
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, result)
 }
 
@@ -171,7 +171,7 @@ func TestURICanonicalizeDiscoveryMissing(t *testing.T) {
 
 	result, err := obj.Canonicalize()
 
-	assert.True(t, errors.Is(err, ErrUnknownDiscovery))
+	assert.ErrorIs(t, err, ErrUnknownDiscovery)
 	assert.Nil(t, result)
 }
 
@@ -216,7 +216,7 @@ func TestURICanonicalizeNoPort(t *testing.T) {
 
 	result, err := obj.Canonicalize()
 
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Nil(t, result)
 }
 
@@ -311,4 +311,484 @@ func TestURICanonicalizePortLookupFails(t *testing.T) {
 
 	assert.Same(t, assert.AnError, err)
 	assert.Nil(t, result)
+}
+
+func TestURIDialBase(t *testing.T) {
+	obj := &URI{
+		URL: url.URL{
+			Host: "127.0.0.1:1234",
+		},
+		Transport: "tcp",
+	}
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	c := &Conduit{}
+	mech.On("Dial", cfg, obj).Return(c, nil)
+	securityCalled := false
+	transportCalled := false
+	defer patcher.NewPatchMaster(
+		patcher.SetVar(&lookupSecurity, func(name string) Mechanism {
+			assert.Equal(t, "tls", name)
+			securityCalled = true
+			return nil
+		}),
+		patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+			assert.Equal(t, "tcp", name)
+			transportCalled = true
+			return mech
+		}),
+	).Install().Restore()
+
+	result, err := obj.Dial(cfg)
+
+	assert.NoError(t, err)
+	assert.Same(t, c, result)
+	mech.AssertExpectations(t)
+	assert.False(t, securityCalled)
+	assert.True(t, transportCalled)
+}
+
+func TestURIDialWithSecurity(t *testing.T) {
+	obj := &URI{
+		URL: url.URL{
+			Host: "127.0.0.1:1234",
+		},
+		Transport: "tcp",
+		Security:  "tls",
+	}
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	c := &Conduit{}
+	mech.On("Dial", cfg, obj).Return(c, nil)
+	securityCalled := false
+	transportCalled := false
+	defer patcher.NewPatchMaster(
+		patcher.SetVar(&lookupSecurity, func(name string) Mechanism {
+			assert.Equal(t, "tls", name)
+			securityCalled = true
+			return mech
+		}),
+		patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+			assert.Equal(t, "tcp", name)
+			transportCalled = true
+			return nil
+		}),
+	).Install().Restore()
+
+	result, err := obj.Dial(cfg)
+
+	assert.NoError(t, err)
+	assert.Same(t, c, result)
+	mech.AssertExpectations(t)
+	assert.True(t, securityCalled)
+	assert.False(t, transportCalled)
+}
+
+func TestURIDialNotCanonical(t *testing.T) {
+	obj := &URI{
+		URL: url.URL{
+			Host: "127.0.0.1:1234",
+		},
+		Transport: "tcp",
+		Discovery: "srv",
+	}
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	securityCalled := false
+	transportCalled := false
+	defer patcher.NewPatchMaster(
+		patcher.SetVar(&lookupSecurity, func(name string) Mechanism {
+			assert.Equal(t, "tls", name)
+			securityCalled = true
+			return nil
+		}),
+		patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+			assert.Equal(t, "tcp", name)
+			transportCalled = true
+			return mech
+		}),
+	).Install().Restore()
+
+	result, err := obj.Dial(cfg)
+
+	assert.ErrorIs(t, err, ErrNotCanonical)
+	assert.Nil(t, result)
+	mech.AssertExpectations(t)
+	assert.False(t, securityCalled)
+	assert.False(t, transportCalled)
+}
+
+func TestURIDialBlankTransport(t *testing.T) {
+	obj := &URI{
+		URL: url.URL{
+			Host: "127.0.0.1:1234",
+		},
+	}
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	securityCalled := false
+	transportCalled := false
+	defer patcher.NewPatchMaster(
+		patcher.SetVar(&lookupSecurity, func(name string) Mechanism {
+			assert.Equal(t, "tls", name)
+			securityCalled = true
+			return nil
+		}),
+		patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+			assert.Equal(t, "tcp", name)
+			transportCalled = true
+			return mech
+		}),
+	).Install().Restore()
+
+	result, err := obj.Dial(cfg)
+
+	assert.ErrorIs(t, err, ErrUnknownTransport)
+	assert.Nil(t, result)
+	mech.AssertExpectations(t)
+	assert.False(t, securityCalled)
+	assert.False(t, transportCalled)
+}
+
+func TestURIDialUnknownSecurity(t *testing.T) {
+	obj := &URI{
+		URL: url.URL{
+			Host: "127.0.0.1:1234",
+		},
+		Transport: "tcp",
+		Security:  "tls",
+	}
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	securityCalled := false
+	transportCalled := false
+	defer patcher.NewPatchMaster(
+		patcher.SetVar(&lookupSecurity, func(name string) Mechanism {
+			assert.Equal(t, "tls", name)
+			securityCalled = true
+			return nil
+		}),
+		patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+			assert.Equal(t, "tcp", name)
+			transportCalled = true
+			return mech
+		}),
+	).Install().Restore()
+
+	result, err := obj.Dial(cfg)
+
+	assert.ErrorIs(t, err, ErrUnknownSecurity)
+	assert.Nil(t, result)
+	mech.AssertExpectations(t)
+	assert.True(t, securityCalled)
+	assert.False(t, transportCalled)
+}
+
+func TestURIDialUnknownTransport(t *testing.T) {
+	obj := &URI{
+		URL: url.URL{
+			Host: "127.0.0.1:1234",
+		},
+		Transport: "tcp",
+	}
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	securityCalled := false
+	transportCalled := false
+	defer patcher.NewPatchMaster(
+		patcher.SetVar(&lookupSecurity, func(name string) Mechanism {
+			assert.Equal(t, "tls", name)
+			securityCalled = true
+			return mech
+		}),
+		patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+			assert.Equal(t, "tcp", name)
+			transportCalled = true
+			return nil
+		}),
+	).Install().Restore()
+
+	result, err := obj.Dial(cfg)
+
+	assert.ErrorIs(t, err, ErrUnknownTransport)
+	assert.Nil(t, result)
+	mech.AssertExpectations(t)
+	assert.False(t, securityCalled)
+	assert.True(t, transportCalled)
+}
+
+func TestURIListenBase(t *testing.T) {
+	obj := &URI{
+		URL: url.URL{
+			Host: "127.0.0.1:1234",
+		},
+		Transport: "tcp",
+	}
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	l := &mockListener{}
+	mech.On("Listen", cfg, obj).Return(l, nil)
+	securityCalled := false
+	transportCalled := false
+	defer patcher.NewPatchMaster(
+		patcher.SetVar(&lookupSecurity, func(name string) Mechanism {
+			assert.Equal(t, "tls", name)
+			securityCalled = true
+			return nil
+		}),
+		patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+			assert.Equal(t, "tcp", name)
+			transportCalled = true
+			return mech
+		}),
+	).Install().Restore()
+
+	result, err := obj.Listen(cfg)
+
+	assert.NoError(t, err)
+	assert.Same(t, l, result)
+	mech.AssertExpectations(t)
+	assert.False(t, securityCalled)
+	assert.True(t, transportCalled)
+}
+
+func TestURIListenWithSecurity(t *testing.T) {
+	obj := &URI{
+		URL: url.URL{
+			Host: "127.0.0.1:1234",
+		},
+		Transport: "tcp",
+		Security:  "tls",
+	}
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	l := &mockListener{}
+	mech.On("Listen", cfg, obj).Return(l, nil)
+	securityCalled := false
+	transportCalled := false
+	defer patcher.NewPatchMaster(
+		patcher.SetVar(&lookupSecurity, func(name string) Mechanism {
+			assert.Equal(t, "tls", name)
+			securityCalled = true
+			return mech
+		}),
+		patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+			assert.Equal(t, "tcp", name)
+			transportCalled = true
+			return nil
+		}),
+	).Install().Restore()
+
+	result, err := obj.Listen(cfg)
+
+	assert.NoError(t, err)
+	assert.Same(t, l, result)
+	mech.AssertExpectations(t)
+	assert.True(t, securityCalled)
+	assert.False(t, transportCalled)
+}
+
+func TestURIListenNotCanonical(t *testing.T) {
+	obj := &URI{
+		URL: url.URL{
+			Host: "127.0.0.1:1234",
+		},
+		Transport: "tcp",
+		Discovery: "srv",
+	}
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	securityCalled := false
+	transportCalled := false
+	defer patcher.NewPatchMaster(
+		patcher.SetVar(&lookupSecurity, func(name string) Mechanism {
+			assert.Equal(t, "tls", name)
+			securityCalled = true
+			return nil
+		}),
+		patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+			assert.Equal(t, "tcp", name)
+			transportCalled = true
+			return mech
+		}),
+	).Install().Restore()
+
+	result, err := obj.Listen(cfg)
+
+	assert.ErrorIs(t, err, ErrNotCanonical)
+	assert.Nil(t, result)
+	mech.AssertExpectations(t)
+	assert.False(t, securityCalled)
+	assert.False(t, transportCalled)
+}
+
+func TestURIListenBlankTransport(t *testing.T) {
+	obj := &URI{
+		URL: url.URL{
+			Host: "127.0.0.1:1234",
+		},
+	}
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	securityCalled := false
+	transportCalled := false
+	defer patcher.NewPatchMaster(
+		patcher.SetVar(&lookupSecurity, func(name string) Mechanism {
+			assert.Equal(t, "tls", name)
+			securityCalled = true
+			return nil
+		}),
+		patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+			assert.Equal(t, "tcp", name)
+			transportCalled = true
+			return mech
+		}),
+	).Install().Restore()
+
+	result, err := obj.Listen(cfg)
+
+	assert.ErrorIs(t, err, ErrUnknownTransport)
+	assert.Nil(t, result)
+	mech.AssertExpectations(t)
+	assert.False(t, securityCalled)
+	assert.False(t, transportCalled)
+}
+
+func TestURIListenUnknownSecurity(t *testing.T) {
+	obj := &URI{
+		URL: url.URL{
+			Host: "127.0.0.1:1234",
+		},
+		Transport: "tcp",
+		Security:  "tls",
+	}
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	securityCalled := false
+	transportCalled := false
+	defer patcher.NewPatchMaster(
+		patcher.SetVar(&lookupSecurity, func(name string) Mechanism {
+			assert.Equal(t, "tls", name)
+			securityCalled = true
+			return nil
+		}),
+		patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+			assert.Equal(t, "tcp", name)
+			transportCalled = true
+			return mech
+		}),
+	).Install().Restore()
+
+	result, err := obj.Listen(cfg)
+
+	assert.ErrorIs(t, err, ErrUnknownSecurity)
+	assert.Nil(t, result)
+	mech.AssertExpectations(t)
+	assert.True(t, securityCalled)
+	assert.False(t, transportCalled)
+}
+
+func TestURIListenUnknownTransport(t *testing.T) {
+	obj := &URI{
+		URL: url.URL{
+			Host: "127.0.0.1:1234",
+		},
+		Transport: "tcp",
+	}
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	securityCalled := false
+	transportCalled := false
+	defer patcher.NewPatchMaster(
+		patcher.SetVar(&lookupSecurity, func(name string) Mechanism {
+			assert.Equal(t, "tls", name)
+			securityCalled = true
+			return mech
+		}),
+		patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+			assert.Equal(t, "tcp", name)
+			transportCalled = true
+			return nil
+		}),
+	).Install().Restore()
+
+	result, err := obj.Listen(cfg)
+
+	assert.ErrorIs(t, err, ErrUnknownTransport)
+	assert.Nil(t, result)
+	mech.AssertExpectations(t)
+	assert.False(t, securityCalled)
+	assert.True(t, transportCalled)
+}
+
+func TestDialBase(t *testing.T) {
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	c := &Conduit{}
+	mech.On("Dial", cfg, &URI{
+		URL: url.URL{
+			Scheme: "tcp",
+			Host:   "127.0.0.1:1234",
+		},
+		Transport: "tcp",
+	}).Return(c, nil)
+	defer patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+		return mech
+	}).Install().Restore()
+
+	result, err := Dial(cfg, "tcp://127.0.0.1:1234")
+
+	assert.NoError(t, err)
+	assert.Same(t, c, result)
+	mech.AssertExpectations(t)
+}
+
+func TestDialParseError(t *testing.T) {
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	defer patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+		return mech
+	}).Install().Restore()
+
+	result, err := Dial(cfg, "://127.0.0.1:1234")
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	mech.AssertExpectations(t)
+}
+
+func TestListenBase(t *testing.T) {
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	l := &mockListener{}
+	mech.On("Listen", cfg, &URI{
+		URL: url.URL{
+			Scheme: "tcp",
+			Host:   "127.0.0.1:1234",
+		},
+		Transport: "tcp",
+	}).Return(l, nil)
+	defer patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+		return mech
+	}).Install().Restore()
+
+	result, err := Listen(cfg, "tcp://127.0.0.1:1234")
+
+	assert.NoError(t, err)
+	assert.Same(t, l, result)
+	mech.AssertExpectations(t)
+}
+
+func TestListenParseError(t *testing.T) {
+	mech := &mockMechanism{}
+	cfg := &mock.Mock{}
+	defer patcher.SetVar(&lookupTransport, func(name string) Mechanism {
+		return mech
+	}).Install().Restore()
+
+	result, err := Listen(cfg, "://127.0.0.1:1234")
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	mech.AssertExpectations(t)
 }
