@@ -38,7 +38,7 @@ type TCPMech int
 // connection-oriented transports, Dial causes initiation of a
 // connection.  For those transports that are not connection-oriented,
 // the conduit will still be in the appropriate state.
-func (t TCPMech) Dial(config interface{}, u *URI) (*Conduit, error) {
+func (t TCPMech) Dial(config Config, u *URI) (*Conduit, error) {
 	c, err := netDial("tcp", u.Host)
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func (t TCPMech) Dial(config interface{}, u *URI) (*Conduit, error) {
 // accept connections.  For those transports that are not
 // connection-oriented, the listener synthesizes the appropriate
 // state.
-func (t TCPMech) Listen(config interface{}, u *URI) (Listener, error) {
+func (t TCPMech) Listen(config Config, u *URI) (Listener, error) {
 	l, err := netListen("tcp", u.Host)
 	if err != nil {
 		return nil, err

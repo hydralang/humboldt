@@ -21,7 +21,6 @@ import (
 
 	"github.com/klmitch/patcher"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestParseBase(t *testing.T) {
@@ -321,7 +320,7 @@ func TestURIDialBase(t *testing.T) {
 		Transport: "tcp",
 	}
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	c := &Conduit{}
 	mech.On("Dial", cfg, obj).Return(c, nil)
 	securityCalled := false
@@ -357,7 +356,7 @@ func TestURIDialWithSecurity(t *testing.T) {
 		Security:  "tls",
 	}
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	c := &Conduit{}
 	mech.On("Dial", cfg, obj).Return(c, nil)
 	securityCalled := false
@@ -393,7 +392,7 @@ func TestURIDialNotCanonical(t *testing.T) {
 		Discovery: "srv",
 	}
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -425,7 +424,7 @@ func TestURIDialBlankTransport(t *testing.T) {
 		},
 	}
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -459,7 +458,7 @@ func TestURIDialUnknownSecurity(t *testing.T) {
 		Security:  "tls",
 	}
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -492,7 +491,7 @@ func TestURIDialUnknownTransport(t *testing.T) {
 		Transport: "tcp",
 	}
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -525,7 +524,7 @@ func TestURIListenBase(t *testing.T) {
 		Transport: "tcp",
 	}
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	l := &mockListener{}
 	mech.On("Listen", cfg, obj).Return(l, nil)
 	securityCalled := false
@@ -561,7 +560,7 @@ func TestURIListenWithSecurity(t *testing.T) {
 		Security:  "tls",
 	}
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	l := &mockListener{}
 	mech.On("Listen", cfg, obj).Return(l, nil)
 	securityCalled := false
@@ -597,7 +596,7 @@ func TestURIListenNotCanonical(t *testing.T) {
 		Discovery: "srv",
 	}
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -629,7 +628,7 @@ func TestURIListenBlankTransport(t *testing.T) {
 		},
 	}
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -663,7 +662,7 @@ func TestURIListenUnknownSecurity(t *testing.T) {
 		Security:  "tls",
 	}
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -696,7 +695,7 @@ func TestURIListenUnknownTransport(t *testing.T) {
 		Transport: "tcp",
 	}
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -723,7 +722,7 @@ func TestURIListenUnknownTransport(t *testing.T) {
 
 func TestDialBase(t *testing.T) {
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	c := &Conduit{}
 	mech.On("Dial", cfg, &URI{
 		URL: url.URL{
@@ -745,7 +744,7 @@ func TestDialBase(t *testing.T) {
 
 func TestDialParseError(t *testing.T) {
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	defer patcher.SetVar(&lookupTransport, func(name string) Mechanism {
 		return mech
 	}).Install().Restore()
@@ -759,7 +758,7 @@ func TestDialParseError(t *testing.T) {
 
 func TestListenBase(t *testing.T) {
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	l := &mockListener{}
 	mech.On("Listen", cfg, &URI{
 		URL: url.URL{
@@ -781,7 +780,7 @@ func TestListenBase(t *testing.T) {
 
 func TestListenParseError(t *testing.T) {
 	mech := &mockMechanism{}
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	defer patcher.SetVar(&lookupTransport, func(name string) Mechanism {
 		return mech
 	}).Install().Restore()

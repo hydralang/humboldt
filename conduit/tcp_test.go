@@ -21,7 +21,6 @@ import (
 
 	"github.com/klmitch/patcher"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestTCPAddr2URI(t *testing.T) {
@@ -45,7 +44,7 @@ func TestTCPMechImplementsMechanism(t *testing.T) {
 }
 
 func TestTCPMechDialBase(t *testing.T) {
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	conn := &mockConn{}
 	addr := &mockAddr{}
 	u := &URI{
@@ -82,7 +81,7 @@ func TestTCPMechDialBase(t *testing.T) {
 }
 
 func TestTCPMechDialError(t *testing.T) {
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	u := &URI{
 		URL: url.URL{
 			Host: "127.0.0.1:4321",
@@ -102,7 +101,7 @@ func TestTCPMechDialError(t *testing.T) {
 }
 
 func TestTCPMechListenBase(t *testing.T) {
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	l := &mockNetListener{}
 	addr := &mockAddr{}
 	u := &URI{
@@ -137,7 +136,7 @@ func TestTCPMechListenBase(t *testing.T) {
 }
 
 func TestTCPMechListenError(t *testing.T) {
-	cfg := &mock.Mock{}
+	cfg := &mockConfig{}
 	u := &URI{
 		URL: url.URL{
 			Host: "127.0.0.1:1234",

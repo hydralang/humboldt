@@ -173,7 +173,7 @@ func (u *URI) Canonicalize() ([]*URI, error) {
 // connection-oriented transports, Dial causes initiation of a
 // connection.  For those transports that are not connection-oriented,
 // the conduit will still be in the appropriate state.
-func (u *URI) Dial(config interface{}) (*Conduit, error) {
+func (u *URI) Dial(config Config) (*Conduit, error) {
 	if !u.IsCanonical() {
 		return nil, fmt.Errorf("%s: %w", u, ErrNotCanonical)
 	}
@@ -202,7 +202,7 @@ func (u *URI) Dial(config interface{}) (*Conduit, error) {
 // accept connections.  For those transports that are not
 // connection-oriented, the listener synthesizes the appropriate
 // state.
-func (u *URI) Listen(config interface{}) (Listener, error) {
+func (u *URI) Listen(config Config) (Listener, error) {
 	if !u.IsCanonical() {
 		return nil, fmt.Errorf("%s: %w", u, ErrNotCanonical)
 	}
@@ -230,7 +230,7 @@ func (u *URI) Listen(config interface{}) (Listener, error) {
 // connection-oriented transports, Dial causes initiation of a
 // connection.  For those transports that are not connection-oriented,
 // the conduit will still be in the appropriate state.
-func Dial(config interface{}, uri string) (*Conduit, error) {
+func Dial(config Config, uri string) (*Conduit, error) {
 	// Parse the URI
 	u, err := Parse(uri)
 	if err != nil {
@@ -246,7 +246,7 @@ func Dial(config interface{}, uri string) (*Conduit, error) {
 // accept connections.  For those transports that are not
 // connection-oriented, the listener synthesizes the appropriate
 // state.
-func Listen(config interface{}, uri string) (Listener, error) {
+func Listen(config Config, uri string) (Listener, error) {
 	// Parse the URI
 	u, err := Parse(uri)
 	if err != nil {

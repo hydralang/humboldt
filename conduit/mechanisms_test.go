@@ -62,7 +62,7 @@ type mockMechanism struct {
 	mock.Mock
 }
 
-func (m *mockMechanism) Dial(config interface{}, u *URI) (*Conduit, error) {
+func (m *mockMechanism) Dial(config Config, u *URI) (*Conduit, error) {
 	args := m.MethodCalled("Dial", config, u)
 
 	if tmp := args.Get(0); tmp != nil {
@@ -72,7 +72,7 @@ func (m *mockMechanism) Dial(config interface{}, u *URI) (*Conduit, error) {
 	return nil, args.Error(1)
 }
 
-func (m *mockMechanism) Listen(config interface{}, u *URI) (Listener, error) {
+func (m *mockMechanism) Listen(config Config, u *URI) (Listener, error) {
 	args := m.MethodCalled("Listen", config, u)
 
 	if tmp := args.Get(0); tmp != nil {

@@ -43,14 +43,14 @@ type Mechanism interface {
 	// connection.  For those transports that are not
 	// connection-oriented, the conduit will still be in the
 	// appropriate state.
-	Dial(config interface{}, u *URI) (*Conduit, error)
+	Dial(config Config, u *URI) (*Conduit, error)
 
 	// Listen opens a transport in passive mode; that is, for
 	// connection-oriented transports, Listen creates a listener
 	// that may accept connections.  For those transports that are
 	// not connection-oriented, the listener synthesizes the
 	// appropriate state.
-	Listen(config interface{}, u *URI) (Listener, error)
+	Listen(config Config, u *URI) (Listener, error)
 }
 
 // secMechs is a registry of security layer mechanisms.
