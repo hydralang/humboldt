@@ -17,6 +17,7 @@ package conduit
 import (
 	"context"
 	"net"
+	"syscall"
 	"testing"
 	"time"
 
@@ -152,4 +153,38 @@ func TestKeepAliveListenApply(t *testing.T) {
 	assert.Equal(t, &net.ListenConfig{
 		KeepAlive: time.Second,
 	}, lc)
+}
+
+func TestControlImplementsDialerOption(t *testing.T) {
+	assert.Implements(t, (*DialerOption)(nil), control{})
+}
+
+func TestControlImplementsListenerOption(t *testing.T) {
+	assert.Implements(t, (*ListenerOption)(nil), control{})
+}
+
+func TestControlDialApply(t *testing.T) {
+	dialer := &net.Dialer{
+		Control: func(network, address string, c syscall.RawConn) error {
+			return nil
+		},
+	}
+	obj := control{}
+
+	obj.DialApply(dialer)
+
+	assert.Equal(t, &net.Dialer{}, dialer)
+}
+
+func TestControlListenApply(t *testing.T) {
+	lc := &net.ListenConfig{
+		Control: func(network, address string, c syscall.RawConn) error {
+			return nil
+		},
+	}
+	obj := control{}
+
+	obj.ListenApply(lc)
+
+	assert.Equal(t, &net.ListenConfig{}, lc)
 }

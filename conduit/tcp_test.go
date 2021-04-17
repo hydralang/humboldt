@@ -17,6 +17,7 @@ package conduit
 import (
 	"context"
 	"net/url"
+	"syscall"
 	"testing"
 
 	"github.com/klmitch/patcher"
@@ -38,6 +39,51 @@ func TestTCPAddr2URI(t *testing.T) {
 		Transport: "tcp",
 	}, result)
 	addr.AssertExpectations(t)
+}
+
+type mockRawConn struct {
+	mock.Mock
+}
+
+func (m *mockRawConn) Control(f func(fd uintptr)) error {
+	args := m.MethodCalled("Control", f)
+
+	return args.Error(0)
+}
+
+func (m *mockRawConn) Read(f func(fd uintptr) (done bool)) error {
+	args := m.MethodCalled("Read", f)
+
+	return args.Error(0)
+}
+
+func (m *mockRawConn) Write(f func(fd uintptr) (done bool)) error {
+	args := m.MethodCalled("Write", f)
+
+	return args.Error(0)
+}
+
+func TestTCPReuseAddr(t *testing.T) {
+	c := &mockRawConn{}
+	c.On("Control", mock.Anything).Return(assert.AnError)
+	setsockoptCalled := false
+	defer patcher.SetVar(&setsockoptInt, func(fd, level, opt, value int) error {
+		assert.Equal(t, 5, fd)
+		assert.Equal(t, syscall.SOL_SOCKET, level)
+		assert.Equal(t, syscall.SO_REUSEADDR, opt)
+		assert.Equal(t, 1, value)
+		setsockoptCalled = true
+		return nil
+	}).Install().Restore()
+
+	err := tcpReuseAddr("net", "addr", c)
+
+	assert.Same(t, assert.AnError, err)
+	c.AssertExpectations(t)
+	assert.False(t, setsockoptCalled)
+	f := c.Calls[0].Arguments[0].(func(fd uintptr))
+	f(uintptr(5))
+	assert.True(t, setsockoptCalled)
 }
 
 func TestTCPMechImplementsMechanism(t *testing.T) {
@@ -127,7 +173,8 @@ func TestTCPMechListenBase(t *testing.T) {
 	l.On("Addr").Return(addr)
 	lc.On("Listen", ctx, "tcp", "127.0.0.1:1234").Return(l, nil)
 	defer patcher.SetVar(&mkListenConfigPatch, func(opts []ListenerOption) iListenConfig {
-		assert.Equal(t, []ListenerOption{opt}, opts)
+		assert.Len(t, opts, 2)
+		assert.Equal(t, opt, opts[0])
 		return lc
 	}).Install().Restore()
 
@@ -162,7 +209,8 @@ func TestTCPMechListenError(t *testing.T) {
 	obj := TCPMech(0)
 	lc.On("Listen", ctx, "tcp", "127.0.0.1:1234").Return(nil, assert.AnError)
 	defer patcher.SetVar(&mkListenConfigPatch, func(opts []ListenerOption) iListenConfig {
-		assert.Equal(t, []ListenerOption{opt}, opts)
+		assert.Len(t, opts, 2)
+		assert.Equal(t, opt, opts[0])
 		return lc
 	}).Install().Restore()
 

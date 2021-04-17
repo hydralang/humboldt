@@ -17,6 +17,7 @@ package conduit
 import (
 	"context"
 	"net"
+	"syscall"
 	"time"
 )
 
@@ -96,4 +97,20 @@ func (ka KeepAlive) DialApply(d *net.Dialer) {
 // ListenApply applies the option to a net.ListenConfig.
 func (ka KeepAlive) ListenApply(lc *net.ListenConfig) {
 	lc.KeepAlive = time.Duration(ka)
+}
+
+// control is an option for Dial and Listen that sets the Control
+// option.
+type control struct {
+	Control func(network, address string, c syscall.RawConn) error
+}
+
+// DialApply applies the option to a net.Dialer.
+func (c control) DialApply(d *net.Dialer) {
+	d.Control = c.Control
+}
+
+// ListenApply applies the option to a net.ListenConfig.
+func (c control) ListenApply(lc *net.ListenConfig) {
+	lc.Control = c.Control
 }

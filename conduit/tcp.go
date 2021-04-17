@@ -18,6 +18,7 @@ import (
 	"context"
 	"net"
 	"net/url"
+	"syscall"
 )
 
 // TCPAddr2URI converts an address in the form returned by TCP
@@ -30,6 +31,14 @@ func TCPAddr2URI(addr net.Addr) *URI {
 		},
 		Transport: "tcp",
 	}
+}
+
+// tcpReuseAddr is an implementation of the Control option which sets
+// the "reuseaddr" flag on a listening socket.
+func tcpReuseAddr(network, address string, c syscall.RawConn) error {
+	return c.Control(func(fd uintptr) {
+		setsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1) //nolint:errcheck
+	})
 }
 
 // TCPMech is a mechanism for TCP connections.
@@ -65,6 +74,7 @@ func (t TCPMech) Dial(ctx context.Context, config Config, u *URI, opts []DialerO
 // state.
 func (t TCPMech) Listen(ctx context.Context, config Config, u *URI, opts []ListenerOption) (Listener, error) {
 	// Construct the listener config
+	opts = append(opts, control{Control: tcpReuseAddr})
 	lc := mkListenConfigPatch(opts)
 
 	// Create the listener

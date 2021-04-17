@@ -14,7 +14,10 @@
 
 package conduit
 
-import "net"
+import (
+	"net"
+	"syscall"
+)
 
 // Patch points for isolating functions during testing.
 var (
@@ -24,4 +27,5 @@ var (
 	lookupTransport     func(string) Mechanism                    = LookupTransport
 	mkDialerPatch       func(opts []DialerOption) iDialer         = mkDialer
 	mkListenConfigPatch func(opts []ListenerOption) iListenConfig = mkListenConfig
+	setsockoptInt       func(fd, level, opt, value int) error     = syscall.SetsockoptInt
 )
