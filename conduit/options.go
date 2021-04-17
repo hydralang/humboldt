@@ -17,6 +17,7 @@ package conduit
 import (
 	"context"
 	"net"
+	"time"
 )
 
 // iDialer is an interface matching that provided by net.Dialer.  This
@@ -81,4 +82,18 @@ func mkListenConfig(opts []ListenerOption) iListenConfig {
 	}
 
 	return result
+}
+
+// KeepAlive is an option for Dial and Listen that sets the KeepAlive
+// option.
+type KeepAlive time.Duration
+
+// DialApply applies the option to a net.Dialer.
+func (ka KeepAlive) DialApply(d *net.Dialer) {
+	d.KeepAlive = time.Duration(ka)
+}
+
+// ListenApply applies the option to a net.ListenConfig.
+func (ka KeepAlive) ListenApply(lc *net.ListenConfig) {
+	lc.KeepAlive = time.Duration(ka)
 }

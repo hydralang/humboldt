@@ -123,3 +123,33 @@ func TestMkListenConfig(t *testing.T) {
 	opt1.AssertExpectations(t)
 	opt2.AssertExpectations(t)
 }
+
+func TestKeepAliveImplementsDialerOption(t *testing.T) {
+	assert.Implements(t, (*DialerOption)(nil), KeepAlive(time.Second))
+}
+
+func TestKeepAliveImplementsListenerOption(t *testing.T) {
+	assert.Implements(t, (*ListenerOption)(nil), KeepAlive(time.Second))
+}
+
+func TestKeepAliveDialApply(t *testing.T) {
+	dialer := &net.Dialer{}
+	obj := KeepAlive(time.Second)
+
+	obj.DialApply(dialer)
+
+	assert.Equal(t, &net.Dialer{
+		KeepAlive: time.Second,
+	}, dialer)
+}
+
+func TestKeepAliveListenApply(t *testing.T) {
+	lc := &net.ListenConfig{}
+	obj := KeepAlive(time.Second)
+
+	obj.ListenApply(lc)
+
+	assert.Equal(t, &net.ListenConfig{
+		KeepAlive: time.Second,
+	}, lc)
+}
