@@ -15,12 +15,13 @@
 package conduit
 
 import (
-	"net"
+	"context"
 	"net/url"
 	"testing"
 
 	"github.com/klmitch/patcher"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestTCPAddr2URI(t *testing.T) {
@@ -44,24 +45,28 @@ func TestTCPMechImplementsMechanism(t *testing.T) {
 }
 
 func TestTCPMechDialBase(t *testing.T) {
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockDialerOption{}
 	conn := &mockConn{}
 	addr := &mockAddr{}
+	dialer := &mockDialer{}
 	u := &URI{
 		URL: url.URL{
 			Host: "127.0.0.1:4321",
 		},
 	}
 	obj := TCPMech(0)
+	opt.On("DialApply", mock.Anything)
 	addr.On("String").Return("127.0.0.1:1234")
 	conn.On("LocalAddr").Return(addr)
-	defer patcher.SetVar(&netDial, func(network, address string) (net.Conn, error) {
-		assert.Equal(t, "tcp", network)
-		assert.Equal(t, "127.0.0.1:4321", address)
-		return conn, nil
+	dialer.On("DialContext", ctx, "tcp", "127.0.0.1:4321").Return(conn, nil)
+	defer patcher.SetVar(&mkDialerPatch, func(opts []DialerOption) iDialer {
+		assert.Equal(t, []DialerOption{opt}, opts)
+		return dialer
 	}).Install().Restore()
 
-	result, err := obj.Dial(cfg, u)
+	result, err := obj.Dial(ctx, cfg, u, []DialerOption{opt})
 
 	assert.NoError(t, err)
 	assert.Equal(t, &Conduit{
@@ -78,32 +83,40 @@ func TestTCPMechDialBase(t *testing.T) {
 	}, result)
 	addr.AssertExpectations(t)
 	conn.AssertExpectations(t)
+	dialer.AssertExpectations(t)
 }
 
 func TestTCPMechDialError(t *testing.T) {
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockDialerOption{}
+	dialer := &mockDialer{}
 	u := &URI{
 		URL: url.URL{
 			Host: "127.0.0.1:4321",
 		},
 	}
 	obj := TCPMech(0)
-	defer patcher.SetVar(&netDial, func(network, address string) (net.Conn, error) {
-		assert.Equal(t, "tcp", network)
-		assert.Equal(t, "127.0.0.1:4321", address)
-		return nil, assert.AnError
+	dialer.On("DialContext", ctx, "tcp", "127.0.0.1:4321").Return(nil, assert.AnError)
+	defer patcher.SetVar(&mkDialerPatch, func(opts []DialerOption) iDialer {
+		assert.Equal(t, []DialerOption{opt}, opts)
+		return dialer
 	}).Install().Restore()
 
-	result, err := obj.Dial(cfg, u)
+	result, err := obj.Dial(ctx, cfg, u, []DialerOption{opt})
 
 	assert.Same(t, assert.AnError, err)
 	assert.Nil(t, result)
+	dialer.AssertExpectations(t)
 }
 
 func TestTCPMechListenBase(t *testing.T) {
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockListenerOption{}
 	l := &mockNetListener{}
 	addr := &mockAddr{}
+	lc := &mockListenConfig{}
 	u := &URI{
 		URL: url.URL{
 			Host: "127.0.0.1:1234",
@@ -112,13 +125,13 @@ func TestTCPMechListenBase(t *testing.T) {
 	obj := TCPMech(0)
 	addr.On("String").Return("127.0.0.1:1234")
 	l.On("Addr").Return(addr)
-	defer patcher.SetVar(&netListen, func(network, address string) (net.Listener, error) {
-		assert.Equal(t, "tcp", network)
-		assert.Equal(t, "127.0.0.1:1234", address)
-		return l, nil
+	lc.On("Listen", ctx, "tcp", "127.0.0.1:1234").Return(l, nil)
+	defer patcher.SetVar(&mkListenConfigPatch, func(opts []ListenerOption) iListenConfig {
+		assert.Equal(t, []ListenerOption{opt}, opts)
+		return lc
 	}).Install().Restore()
 
-	result, err := obj.Listen(cfg, u)
+	result, err := obj.Listen(ctx, cfg, u, []ListenerOption{opt})
 
 	assert.NoError(t, err)
 	assert.Equal(t, &TCPListener{
@@ -133,26 +146,31 @@ func TestTCPMechListenBase(t *testing.T) {
 	}, result)
 	addr.AssertExpectations(t)
 	l.AssertExpectations(t)
+	lc.AssertExpectations(t)
 }
 
 func TestTCPMechListenError(t *testing.T) {
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockListenerOption{}
+	lc := &mockListenConfig{}
 	u := &URI{
 		URL: url.URL{
 			Host: "127.0.0.1:1234",
 		},
 	}
 	obj := TCPMech(0)
-	defer patcher.SetVar(&netListen, func(network, address string) (net.Listener, error) {
-		assert.Equal(t, "tcp", network)
-		assert.Equal(t, "127.0.0.1:1234", address)
-		return nil, assert.AnError
+	lc.On("Listen", ctx, "tcp", "127.0.0.1:1234").Return(nil, assert.AnError)
+	defer patcher.SetVar(&mkListenConfigPatch, func(opts []ListenerOption) iListenConfig {
+		assert.Equal(t, []ListenerOption{opt}, opts)
+		return lc
 	}).Install().Restore()
 
-	result, err := obj.Listen(cfg, u)
+	result, err := obj.Listen(ctx, cfg, u, []ListenerOption{opt})
 
 	assert.Same(t, assert.AnError, err)
 	assert.Nil(t, result)
+	lc.AssertExpectations(t)
 }
 
 func TestTCPListenerImplementsListener(t *testing.T) {

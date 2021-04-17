@@ -15,6 +15,7 @@
 package conduit
 
 import (
+	"context"
 	"net"
 	"net/url"
 	"testing"
@@ -320,9 +321,11 @@ func TestURIDialBase(t *testing.T) {
 		Transport: "tcp",
 	}
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockDialerOption{}
 	c := &Conduit{}
-	mech.On("Dial", cfg, obj).Return(c, nil)
+	mech.On("Dial", ctx, cfg, obj, []DialerOption{opt}).Return(c, nil)
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -338,7 +341,7 @@ func TestURIDialBase(t *testing.T) {
 		}),
 	).Install().Restore()
 
-	result, err := obj.Dial(cfg)
+	result, err := obj.Dial(ctx, cfg, opt)
 
 	assert.NoError(t, err)
 	assert.Same(t, c, result)
@@ -356,9 +359,11 @@ func TestURIDialWithSecurity(t *testing.T) {
 		Security:  "tls",
 	}
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockDialerOption{}
 	c := &Conduit{}
-	mech.On("Dial", cfg, obj).Return(c, nil)
+	mech.On("Dial", ctx, cfg, obj, []DialerOption{opt}).Return(c, nil)
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -374,7 +379,7 @@ func TestURIDialWithSecurity(t *testing.T) {
 		}),
 	).Install().Restore()
 
-	result, err := obj.Dial(cfg)
+	result, err := obj.Dial(ctx, cfg, opt)
 
 	assert.NoError(t, err)
 	assert.Same(t, c, result)
@@ -392,7 +397,9 @@ func TestURIDialNotCanonical(t *testing.T) {
 		Discovery: "srv",
 	}
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockDialerOption{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -408,7 +415,7 @@ func TestURIDialNotCanonical(t *testing.T) {
 		}),
 	).Install().Restore()
 
-	result, err := obj.Dial(cfg)
+	result, err := obj.Dial(ctx, cfg, opt)
 
 	assert.ErrorIs(t, err, ErrNotCanonical)
 	assert.Nil(t, result)
@@ -424,7 +431,9 @@ func TestURIDialBlankTransport(t *testing.T) {
 		},
 	}
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockDialerOption{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -440,7 +449,7 @@ func TestURIDialBlankTransport(t *testing.T) {
 		}),
 	).Install().Restore()
 
-	result, err := obj.Dial(cfg)
+	result, err := obj.Dial(ctx, cfg, opt)
 
 	assert.ErrorIs(t, err, ErrUnknownTransport)
 	assert.Nil(t, result)
@@ -458,7 +467,9 @@ func TestURIDialUnknownSecurity(t *testing.T) {
 		Security:  "tls",
 	}
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockDialerOption{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -474,7 +485,7 @@ func TestURIDialUnknownSecurity(t *testing.T) {
 		}),
 	).Install().Restore()
 
-	result, err := obj.Dial(cfg)
+	result, err := obj.Dial(ctx, cfg, opt)
 
 	assert.ErrorIs(t, err, ErrUnknownSecurity)
 	assert.Nil(t, result)
@@ -491,7 +502,9 @@ func TestURIDialUnknownTransport(t *testing.T) {
 		Transport: "tcp",
 	}
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockDialerOption{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -507,7 +520,7 @@ func TestURIDialUnknownTransport(t *testing.T) {
 		}),
 	).Install().Restore()
 
-	result, err := obj.Dial(cfg)
+	result, err := obj.Dial(ctx, cfg, opt)
 
 	assert.ErrorIs(t, err, ErrUnknownTransport)
 	assert.Nil(t, result)
@@ -524,9 +537,11 @@ func TestURIListenBase(t *testing.T) {
 		Transport: "tcp",
 	}
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockListenerOption{}
 	l := &mockListener{}
-	mech.On("Listen", cfg, obj).Return(l, nil)
+	mech.On("Listen", ctx, cfg, obj, []ListenerOption{opt}).Return(l, nil)
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -542,7 +557,7 @@ func TestURIListenBase(t *testing.T) {
 		}),
 	).Install().Restore()
 
-	result, err := obj.Listen(cfg)
+	result, err := obj.Listen(ctx, cfg, opt)
 
 	assert.NoError(t, err)
 	assert.Same(t, l, result)
@@ -560,9 +575,11 @@ func TestURIListenWithSecurity(t *testing.T) {
 		Security:  "tls",
 	}
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockListenerOption{}
 	l := &mockListener{}
-	mech.On("Listen", cfg, obj).Return(l, nil)
+	mech.On("Listen", ctx, cfg, obj, []ListenerOption{opt}).Return(l, nil)
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -578,7 +595,7 @@ func TestURIListenWithSecurity(t *testing.T) {
 		}),
 	).Install().Restore()
 
-	result, err := obj.Listen(cfg)
+	result, err := obj.Listen(ctx, cfg, opt)
 
 	assert.NoError(t, err)
 	assert.Same(t, l, result)
@@ -596,7 +613,9 @@ func TestURIListenNotCanonical(t *testing.T) {
 		Discovery: "srv",
 	}
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockListenerOption{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -612,7 +631,7 @@ func TestURIListenNotCanonical(t *testing.T) {
 		}),
 	).Install().Restore()
 
-	result, err := obj.Listen(cfg)
+	result, err := obj.Listen(ctx, cfg, opt)
 
 	assert.ErrorIs(t, err, ErrNotCanonical)
 	assert.Nil(t, result)
@@ -628,7 +647,9 @@ func TestURIListenBlankTransport(t *testing.T) {
 		},
 	}
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockListenerOption{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -644,7 +665,7 @@ func TestURIListenBlankTransport(t *testing.T) {
 		}),
 	).Install().Restore()
 
-	result, err := obj.Listen(cfg)
+	result, err := obj.Listen(ctx, cfg, opt)
 
 	assert.ErrorIs(t, err, ErrUnknownTransport)
 	assert.Nil(t, result)
@@ -662,7 +683,9 @@ func TestURIListenUnknownSecurity(t *testing.T) {
 		Security:  "tls",
 	}
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockListenerOption{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -678,7 +701,7 @@ func TestURIListenUnknownSecurity(t *testing.T) {
 		}),
 	).Install().Restore()
 
-	result, err := obj.Listen(cfg)
+	result, err := obj.Listen(ctx, cfg, opt)
 
 	assert.ErrorIs(t, err, ErrUnknownSecurity)
 	assert.Nil(t, result)
@@ -695,7 +718,9 @@ func TestURIListenUnknownTransport(t *testing.T) {
 		Transport: "tcp",
 	}
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockListenerOption{}
 	securityCalled := false
 	transportCalled := false
 	defer patcher.NewPatchMaster(
@@ -711,7 +736,7 @@ func TestURIListenUnknownTransport(t *testing.T) {
 		}),
 	).Install().Restore()
 
-	result, err := obj.Listen(cfg)
+	result, err := obj.Listen(ctx, cfg, opt)
 
 	assert.ErrorIs(t, err, ErrUnknownTransport)
 	assert.Nil(t, result)
@@ -722,20 +747,22 @@ func TestURIListenUnknownTransport(t *testing.T) {
 
 func TestDialBase(t *testing.T) {
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockDialerOption{}
 	c := &Conduit{}
-	mech.On("Dial", cfg, &URI{
+	mech.On("Dial", ctx, cfg, &URI{
 		URL: url.URL{
 			Scheme: "tcp",
 			Host:   "127.0.0.1:1234",
 		},
 		Transport: "tcp",
-	}).Return(c, nil)
+	}, []DialerOption{opt}).Return(c, nil)
 	defer patcher.SetVar(&lookupTransport, func(name string) Mechanism {
 		return mech
 	}).Install().Restore()
 
-	result, err := Dial(cfg, "tcp://127.0.0.1:1234")
+	result, err := Dial(ctx, cfg, "tcp://127.0.0.1:1234", opt)
 
 	assert.NoError(t, err)
 	assert.Same(t, c, result)
@@ -744,12 +771,14 @@ func TestDialBase(t *testing.T) {
 
 func TestDialParseError(t *testing.T) {
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockDialerOption{}
 	defer patcher.SetVar(&lookupTransport, func(name string) Mechanism {
 		return mech
 	}).Install().Restore()
 
-	result, err := Dial(cfg, "://127.0.0.1:1234")
+	result, err := Dial(ctx, cfg, "://127.0.0.1:1234", opt)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -758,20 +787,22 @@ func TestDialParseError(t *testing.T) {
 
 func TestListenBase(t *testing.T) {
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockListenerOption{}
 	l := &mockListener{}
-	mech.On("Listen", cfg, &URI{
+	mech.On("Listen", ctx, cfg, &URI{
 		URL: url.URL{
 			Scheme: "tcp",
 			Host:   "127.0.0.1:1234",
 		},
 		Transport: "tcp",
-	}).Return(l, nil)
+	}, []ListenerOption{opt}).Return(l, nil)
 	defer patcher.SetVar(&lookupTransport, func(name string) Mechanism {
 		return mech
 	}).Install().Restore()
 
-	result, err := Listen(cfg, "tcp://127.0.0.1:1234")
+	result, err := Listen(ctx, cfg, "tcp://127.0.0.1:1234", opt)
 
 	assert.NoError(t, err)
 	assert.Same(t, l, result)
@@ -780,12 +811,14 @@ func TestListenBase(t *testing.T) {
 
 func TestListenParseError(t *testing.T) {
 	mech := &mockMechanism{}
+	ctx := context.Background()
 	cfg := &mockConfig{}
+	opt := &mockListenerOption{}
 	defer patcher.SetVar(&lookupTransport, func(name string) Mechanism {
 		return mech
 	}).Install().Restore()
 
-	result, err := Listen(cfg, "://127.0.0.1:1234")
+	result, err := Listen(ctx, cfg, "://127.0.0.1:1234", opt)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)

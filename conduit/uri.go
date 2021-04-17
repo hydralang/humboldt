@@ -15,6 +15,7 @@
 package conduit
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/url"
@@ -173,7 +174,7 @@ func (u *URI) Canonicalize() ([]*URI, error) {
 // connection-oriented transports, Dial causes initiation of a
 // connection.  For those transports that are not connection-oriented,
 // the conduit will still be in the appropriate state.
-func (u *URI) Dial(config Config) (*Conduit, error) {
+func (u *URI) Dial(ctx context.Context, config Config, opts ...DialerOption) (*Conduit, error) {
 	if !u.IsCanonical() {
 		return nil, fmt.Errorf("%s: %w", u, ErrNotCanonical)
 	}
@@ -186,13 +187,13 @@ func (u *URI) Dial(config Config) (*Conduit, error) {
 	// Is there a security layer?
 	if u.Security != "" {
 		if mech := lookupSecurity(u.Security); mech != nil {
-			return mech.Dial(config, u)
+			return mech.Dial(ctx, config, u, opts)
 		}
 		return nil, fmt.Errorf("%s: %q: %w", u, u.Security, ErrUnknownSecurity)
 	}
 
 	if mech := lookupTransport(u.Transport); mech != nil {
-		return mech.Dial(config, u)
+		return mech.Dial(ctx, config, u, opts)
 	}
 	return nil, fmt.Errorf("%s: %q: %w", u, u.Transport, ErrUnknownTransport)
 }
@@ -202,7 +203,7 @@ func (u *URI) Dial(config Config) (*Conduit, error) {
 // accept connections.  For those transports that are not
 // connection-oriented, the listener synthesizes the appropriate
 // state.
-func (u *URI) Listen(config Config) (Listener, error) {
+func (u *URI) Listen(ctx context.Context, config Config, opts ...ListenerOption) (Listener, error) {
 	if !u.IsCanonical() {
 		return nil, fmt.Errorf("%s: %w", u, ErrNotCanonical)
 	}
@@ -215,13 +216,13 @@ func (u *URI) Listen(config Config) (Listener, error) {
 	// Is there a security layer?
 	if u.Security != "" {
 		if mech := lookupSecurity(u.Security); mech != nil {
-			return mech.Listen(config, u)
+			return mech.Listen(ctx, config, u, opts)
 		}
 		return nil, fmt.Errorf("%s: %q: %w", u, u.Security, ErrUnknownSecurity)
 	}
 
 	if mech := lookupTransport(u.Transport); mech != nil {
-		return mech.Listen(config, u)
+		return mech.Listen(ctx, config, u, opts)
 	}
 	return nil, fmt.Errorf("%s: %q: %w", u, u.Transport, ErrUnknownTransport)
 }
@@ -230,7 +231,7 @@ func (u *URI) Listen(config Config) (Listener, error) {
 // connection-oriented transports, Dial causes initiation of a
 // connection.  For those transports that are not connection-oriented,
 // the conduit will still be in the appropriate state.
-func Dial(config Config, uri string) (*Conduit, error) {
+func Dial(ctx context.Context, config Config, uri string, opts ...DialerOption) (*Conduit, error) {
 	// Parse the URI
 	u, err := Parse(uri)
 	if err != nil {
@@ -238,7 +239,7 @@ func Dial(config Config, uri string) (*Conduit, error) {
 	}
 
 	// Dial it
-	return u.Dial(config)
+	return u.Dial(ctx, config, opts...)
 }
 
 // Listen opens a transport in passive mode; that is, for
@@ -246,7 +247,7 @@ func Dial(config Config, uri string) (*Conduit, error) {
 // accept connections.  For those transports that are not
 // connection-oriented, the listener synthesizes the appropriate
 // state.
-func Listen(config Config, uri string) (Listener, error) {
+func Listen(ctx context.Context, config Config, uri string, opts ...ListenerOption) (Listener, error) {
 	// Parse the URI
 	u, err := Parse(uri)
 	if err != nil {
@@ -254,5 +255,5 @@ func Listen(config Config, uri string) (Listener, error) {
 	}
 
 	// Dial it
-	return u.Listen(config)
+	return u.Listen(ctx, config, opts...)
 }

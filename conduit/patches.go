@@ -18,10 +18,10 @@ import "net"
 
 // Patch points for isolating functions during testing.
 var (
-	lookupIP        func(string) ([]net.IP, error)                      = net.LookupIP
-	lookupPort      func(string, string) (int, error)                   = net.LookupPort
-	lookupSecurity  func(string) Mechanism                              = LookupSecurity
-	lookupTransport func(string) Mechanism                              = LookupTransport
-	netDial         func(network, address string) (net.Conn, error)     = net.Dial
-	netListen       func(network, address string) (net.Listener, error) = net.Listen
+	lookupIP            func(string) ([]net.IP, error)            = net.LookupIP
+	lookupPort          func(string, string) (int, error)         = net.LookupPort
+	lookupSecurity      func(string) Mechanism                    = LookupSecurity
+	lookupTransport     func(string) Mechanism                    = LookupTransport
+	mkDialerPatch       func(opts []DialerOption) iDialer         = mkDialer
+	mkListenConfigPatch func(opts []ListenerOption) iListenConfig = mkListenConfig
 )

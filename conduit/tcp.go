@@ -15,6 +15,7 @@
 package conduit
 
 import (
+	"context"
 	"net"
 	"net/url"
 )
@@ -38,8 +39,12 @@ type TCPMech int
 // connection-oriented transports, Dial causes initiation of a
 // connection.  For those transports that are not connection-oriented,
 // the conduit will still be in the appropriate state.
-func (t TCPMech) Dial(config Config, u *URI) (*Conduit, error) {
-	c, err := netDial("tcp", u.Host)
+func (t TCPMech) Dial(ctx context.Context, config Config, u *URI, opts []DialerOption) (*Conduit, error) {
+	// Construct the dialer
+	dialer := mkDialerPatch(opts)
+
+	// Dial the target
+	c, err := dialer.DialContext(ctx, "tcp", u.Host)
 	if err != nil {
 		return nil, err
 	}
@@ -58,8 +63,12 @@ func (t TCPMech) Dial(config Config, u *URI) (*Conduit, error) {
 // accept connections.  For those transports that are not
 // connection-oriented, the listener synthesizes the appropriate
 // state.
-func (t TCPMech) Listen(config Config, u *URI) (Listener, error) {
-	l, err := netListen("tcp", u.Host)
+func (t TCPMech) Listen(ctx context.Context, config Config, u *URI, opts []ListenerOption) (Listener, error) {
+	// Construct the listener config
+	lc := mkListenConfigPatch(opts)
+
+	// Create the listener
+	l, err := lc.Listen(ctx, "tcp", u.Host)
 	if err != nil {
 		return nil, err
 	}

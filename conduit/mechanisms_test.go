@@ -15,6 +15,7 @@
 package conduit
 
 import (
+	"context"
 	"testing"
 
 	"github.com/klmitch/patcher"
@@ -62,8 +63,8 @@ type mockMechanism struct {
 	mock.Mock
 }
 
-func (m *mockMechanism) Dial(config Config, u *URI) (*Conduit, error) {
-	args := m.MethodCalled("Dial", config, u)
+func (m *mockMechanism) Dial(ctx context.Context, config Config, u *URI, opts []DialerOption) (*Conduit, error) {
+	args := m.MethodCalled("Dial", ctx, config, u, opts)
 
 	if tmp := args.Get(0); tmp != nil {
 		return tmp.(*Conduit), args.Error(1)
@@ -72,8 +73,8 @@ func (m *mockMechanism) Dial(config Config, u *URI) (*Conduit, error) {
 	return nil, args.Error(1)
 }
 
-func (m *mockMechanism) Listen(config Config, u *URI) (Listener, error) {
-	args := m.MethodCalled("Listen", config, u)
+func (m *mockMechanism) Listen(ctx context.Context, config Config, u *URI, opts []ListenerOption) (Listener, error) {
+	args := m.MethodCalled("Listen", ctx, config, u, opts)
 
 	if tmp := args.Get(0); tmp != nil {
 		return tmp.(Listener), args.Error(1)
