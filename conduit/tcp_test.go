@@ -16,6 +16,7 @@ package conduit
 
 import (
 	"context"
+	"net"
 	"net/url"
 	"syscall"
 	"testing"
@@ -86,6 +87,100 @@ func TestTCPReuseAddr(t *testing.T) {
 	assert.True(t, setsockoptCalled)
 }
 
+func TestTCPFilterImplementsDialerFilter(t *testing.T) {
+	assert.Implements(t, (*dialerFilter)(nil), tcpFilter(0))
+}
+
+func TestTCPFilterDialFilterBase(t *testing.T) {
+	opt := &mockDialerOption{}
+	obj := tcpFilter(0)
+
+	err := obj.DialFilter(opt)
+
+	assert.NoError(t, err)
+	opt.AssertExpectations(t)
+}
+
+var loopback = net.IPv4(127, 0, 0, 1)
+
+func TestTCPFilterDialFilterLocalAddr(t *testing.T) {
+	opt := &LocalAddrOption{
+		URI: &URI{
+			URL: url.URL{
+				Scheme: "tcp",
+				Host:   "127.0.0.1:1234",
+			},
+			Transport: "tcp",
+		},
+	}
+	obj := tcpFilter(0)
+
+	err := obj.DialFilter(opt)
+
+	assert.NoError(t, err)
+	assert.Equal(t, &net.TCPAddr{
+		IP: loopback,
+	}, opt.Addr)
+}
+
+func TestTCPFilterDialFilterLocalAddrNonCanonical(t *testing.T) {
+	opt := &LocalAddrOption{
+		URI: &URI{
+			URL: url.URL{
+				Scheme: "tcp+srv",
+				Host:   "127.0.0.1:1234",
+			},
+			Transport: "tcp",
+			Discovery: "srv",
+		},
+	}
+	obj := tcpFilter(0)
+
+	err := obj.DialFilter(opt)
+
+	assert.ErrorIs(t, err, ErrNotCanonical)
+	assert.Nil(t, opt.Addr)
+}
+
+func TestTCPFilterDialFilterLocalAddrBadTransport(t *testing.T) {
+	opt := &LocalAddrOption{
+		URI: &URI{
+			URL: url.URL{
+				Scheme: "unix",
+				Host:   "127.0.0.1:1234",
+			},
+			Transport: "unix",
+		},
+	}
+	obj := tcpFilter(0)
+
+	err := obj.DialFilter(opt)
+
+	assert.ErrorIs(t, err, ErrUnknownTransport)
+	assert.Nil(t, opt.Addr)
+}
+
+func TestTCPFilterDialFilterLocalAddrBadAddress(t *testing.T) {
+	opt := &LocalAddrOption{
+		URI: &URI{
+			URL: url.URL{
+				Scheme: "tcp",
+				Host:   "127.0.0.1:1234",
+			},
+			Transport: "tcp",
+		},
+	}
+	obj := tcpFilter(0)
+	defer patcher.SetVar(&resolveTCPAddr, func(network, address string) (*net.TCPAddr, error) {
+		return nil, assert.AnError
+	}).Install().Restore()
+
+	err := obj.DialFilter(opt)
+
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Nil(t, opt.Addr)
+}
+
 func TestTCPMechImplementsMechanism(t *testing.T) {
 	assert.Implements(t, (*Mechanism)(nil), TCPMech(0))
 }
@@ -107,9 +202,10 @@ func TestTCPMechDialBase(t *testing.T) {
 	addr.On("String").Return("127.0.0.1:1234")
 	conn.On("LocalAddr").Return(addr)
 	dialer.On("DialContext", ctx, "tcp", "127.0.0.1:4321").Return(conn, nil)
-	defer patcher.SetVar(&mkDialerPatch, func(opts []DialerOption) iDialer {
+	defer patcher.SetVar(&mkDialerPatch, func(opts []DialerOption, filt dialerFilter) (iDialer, error) {
 		assert.Equal(t, []DialerOption{opt}, opts)
-		return dialer
+		assert.Equal(t, tcpFilter(0), filt)
+		return dialer, nil
 	}).Install().Restore()
 
 	result, err := obj.Dial(ctx, cfg, u, []DialerOption{opt})
@@ -132,6 +228,29 @@ func TestTCPMechDialBase(t *testing.T) {
 	dialer.AssertExpectations(t)
 }
 
+func TestTCPMechDialMkDialerError(t *testing.T) {
+	ctx := context.Background()
+	cfg := &mockConfig{}
+	opt := &mockDialerOption{}
+	u := &URI{
+		URL: url.URL{
+			Host: "127.0.0.1:4321",
+		},
+	}
+	obj := TCPMech(0)
+	opt.On("DialApply", mock.Anything)
+	defer patcher.SetVar(&mkDialerPatch, func(opts []DialerOption, filt dialerFilter) (iDialer, error) {
+		assert.Equal(t, []DialerOption{opt}, opts)
+		assert.Equal(t, tcpFilter(0), filt)
+		return nil, assert.AnError
+	}).Install().Restore()
+
+	result, err := obj.Dial(ctx, cfg, u, []DialerOption{opt})
+
+	assert.Same(t, assert.AnError, err)
+	assert.Nil(t, result)
+}
+
 func TestTCPMechDialError(t *testing.T) {
 	ctx := context.Background()
 	cfg := &mockConfig{}
@@ -144,9 +263,10 @@ func TestTCPMechDialError(t *testing.T) {
 	}
 	obj := TCPMech(0)
 	dialer.On("DialContext", ctx, "tcp", "127.0.0.1:4321").Return(nil, assert.AnError)
-	defer patcher.SetVar(&mkDialerPatch, func(opts []DialerOption) iDialer {
+	defer patcher.SetVar(&mkDialerPatch, func(opts []DialerOption, filt dialerFilter) (iDialer, error) {
 		assert.Equal(t, []DialerOption{opt}, opts)
-		return dialer
+		assert.Equal(t, tcpFilter(0), filt)
+		return dialer, nil
 	}).Install().Restore()
 
 	result, err := obj.Dial(ctx, cfg, u, []DialerOption{opt})
@@ -172,10 +292,11 @@ func TestTCPMechListenBase(t *testing.T) {
 	addr.On("String").Return("127.0.0.1:1234")
 	l.On("Addr").Return(addr)
 	lc.On("Listen", ctx, "tcp", "127.0.0.1:1234").Return(l, nil)
-	defer patcher.SetVar(&mkListenConfigPatch, func(opts []ListenerOption) iListenConfig {
+	defer patcher.SetVar(&mkListenConfigPatch, func(opts []ListenerOption, filt listenerFilter) (iListenConfig, error) {
 		assert.Len(t, opts, 2)
 		assert.Equal(t, opt, opts[0])
-		return lc
+		assert.Nil(t, filt)
+		return lc, nil
 	}).Install().Restore()
 
 	result, err := obj.Listen(ctx, cfg, u, []ListenerOption{opt})
@@ -196,6 +317,29 @@ func TestTCPMechListenBase(t *testing.T) {
 	lc.AssertExpectations(t)
 }
 
+func TestTCPMechListenMkListenConfigError(t *testing.T) {
+	ctx := context.Background()
+	cfg := &mockConfig{}
+	opt := &mockListenerOption{}
+	u := &URI{
+		URL: url.URL{
+			Host: "127.0.0.1:1234",
+		},
+	}
+	obj := TCPMech(0)
+	defer patcher.SetVar(&mkListenConfigPatch, func(opts []ListenerOption, filt listenerFilter) (iListenConfig, error) {
+		assert.Len(t, opts, 2)
+		assert.Equal(t, opt, opts[0])
+		assert.Nil(t, filt)
+		return nil, assert.AnError
+	}).Install().Restore()
+
+	result, err := obj.Listen(ctx, cfg, u, []ListenerOption{opt})
+
+	assert.Same(t, assert.AnError, err)
+	assert.Nil(t, result)
+}
+
 func TestTCPMechListenError(t *testing.T) {
 	ctx := context.Background()
 	cfg := &mockConfig{}
@@ -208,10 +352,11 @@ func TestTCPMechListenError(t *testing.T) {
 	}
 	obj := TCPMech(0)
 	lc.On("Listen", ctx, "tcp", "127.0.0.1:1234").Return(nil, assert.AnError)
-	defer patcher.SetVar(&mkListenConfigPatch, func(opts []ListenerOption) iListenConfig {
+	defer patcher.SetVar(&mkListenConfigPatch, func(opts []ListenerOption, filt listenerFilter) (iListenConfig, error) {
 		assert.Len(t, opts, 2)
 		assert.Equal(t, opt, opts[0])
-		return lc
+		assert.Nil(t, filt)
+		return lc, nil
 	}).Install().Restore()
 
 	result, err := obj.Listen(ctx, cfg, u, []ListenerOption{opt})

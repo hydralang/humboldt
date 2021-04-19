@@ -57,7 +57,17 @@ func (m *mockDialerOption) DialApply(d *net.Dialer) {
 	m.MethodCalled("DialApply", d)
 }
 
-func TestMkDialer(t *testing.T) {
+type mockDialerFilter struct {
+	mock.Mock
+}
+
+func (m *mockDialerFilter) DialFilter(o DialerOption) error {
+	args := m.MethodCalled("DialFilter", o)
+
+	return args.Error(0)
+}
+
+func TestMkDialerBase(t *testing.T) {
 	opt1 := &mockDialerOption{}
 	opt2 := &mockDialerOption{}
 	opt1.On("DialApply", &net.Dialer{})
@@ -66,13 +76,52 @@ func TestMkDialer(t *testing.T) {
 		dialer.KeepAlive = time.Hour
 	})
 
-	result := mkDialer([]DialerOption{opt1, opt2})
+	result, err := mkDialer([]DialerOption{opt1, opt2}, nil)
 
+	assert.NoError(t, err)
 	assert.Equal(t, &net.Dialer{
 		KeepAlive: time.Hour,
 	}, result)
 	opt1.AssertExpectations(t)
 	opt2.AssertExpectations(t)
+}
+
+func TestMkDialerFilter(t *testing.T) {
+	opt1 := &mockDialerOption{}
+	opt2 := &mockDialerOption{}
+	filt := &mockDialerFilter{}
+	opt1.On("DialApply", &net.Dialer{})
+	opt2.On("DialApply", &net.Dialer{}).Run(func(args mock.Arguments) {
+		dialer := args[0].(*net.Dialer)
+		dialer.KeepAlive = time.Hour
+	})
+	filt.On("DialFilter", opt1).Return(nil)
+	filt.On("DialFilter", opt2).Return(nil)
+
+	result, err := mkDialer([]DialerOption{opt1, opt2}, filt)
+
+	assert.NoError(t, err)
+	assert.Equal(t, &net.Dialer{
+		KeepAlive: time.Hour,
+	}, result)
+	opt1.AssertExpectations(t)
+	opt2.AssertExpectations(t)
+	filt.AssertExpectations(t)
+}
+
+func TestMkDialerFilterError(t *testing.T) {
+	opt1 := &mockDialerOption{}
+	opt2 := &mockDialerOption{}
+	filt := &mockDialerFilter{}
+	filt.On("DialFilter", opt1).Return(assert.AnError)
+
+	result, err := mkDialer([]DialerOption{opt1, opt2}, filt)
+
+	assert.Same(t, assert.AnError, err)
+	assert.Nil(t, result)
+	opt1.AssertExpectations(t)
+	opt2.AssertExpectations(t)
+	filt.AssertExpectations(t)
 }
 
 type mockListenConfig struct {
@@ -107,22 +156,71 @@ func (m *mockListenerOption) ListenApply(d *net.ListenConfig) {
 	m.MethodCalled("ListenApply", d)
 }
 
-func TestMkListenConfig(t *testing.T) {
+type mockListenerFilter struct {
+	mock.Mock
+}
+
+func (m *mockListenerFilter) ListenFilter(o ListenerOption) error {
+	args := m.MethodCalled("ListenFilter", o)
+
+	return args.Error(0)
+}
+
+func TestMkListenConfigBase(t *testing.T) {
 	opt1 := &mockListenerOption{}
 	opt2 := &mockListenerOption{}
 	opt1.On("ListenApply", &net.ListenConfig{})
 	opt2.On("ListenApply", &net.ListenConfig{}).Run(func(args mock.Arguments) {
-		dialer := args[0].(*net.ListenConfig)
-		dialer.KeepAlive = time.Hour
+		lc := args[0].(*net.ListenConfig)
+		lc.KeepAlive = time.Hour
 	})
 
-	result := mkListenConfig([]ListenerOption{opt1, opt2})
+	result, err := mkListenConfig([]ListenerOption{opt1, opt2}, nil)
 
+	assert.NoError(t, err)
 	assert.Equal(t, &net.ListenConfig{
 		KeepAlive: time.Hour,
 	}, result)
 	opt1.AssertExpectations(t)
 	opt2.AssertExpectations(t)
+}
+
+func TestMkListenConfigFilter(t *testing.T) {
+	opt1 := &mockListenerOption{}
+	opt2 := &mockListenerOption{}
+	filt := &mockListenerFilter{}
+	opt1.On("ListenApply", &net.ListenConfig{})
+	opt2.On("ListenApply", &net.ListenConfig{}).Run(func(args mock.Arguments) {
+		lc := args[0].(*net.ListenConfig)
+		lc.KeepAlive = time.Hour
+	})
+	filt.On("ListenFilter", opt1).Return(nil)
+	filt.On("ListenFilter", opt2).Return(nil)
+
+	result, err := mkListenConfig([]ListenerOption{opt1, opt2}, filt)
+
+	assert.NoError(t, err)
+	assert.Equal(t, &net.ListenConfig{
+		KeepAlive: time.Hour,
+	}, result)
+	opt1.AssertExpectations(t)
+	opt2.AssertExpectations(t)
+	filt.AssertExpectations(t)
+}
+
+func TestMkListenConfigFilterError(t *testing.T) {
+	opt1 := &mockListenerOption{}
+	opt2 := &mockListenerOption{}
+	filt := &mockListenerFilter{}
+	filt.On("ListenFilter", opt1).Return(assert.AnError)
+
+	result, err := mkListenConfig([]ListenerOption{opt1, opt2}, filt)
+
+	assert.Same(t, assert.AnError, err)
+	assert.Nil(t, result)
+	opt1.AssertExpectations(t)
+	opt2.AssertExpectations(t)
+	filt.AssertExpectations(t)
 }
 
 func TestKeepAliveImplementsDialerOption(t *testing.T) {
@@ -187,4 +285,32 @@ func TestControlListenApply(t *testing.T) {
 	obj.ListenApply(lc)
 
 	assert.Equal(t, &net.ListenConfig{}, lc)
+}
+
+func TestLocalAddrOptionImplementsDialerOption(t *testing.T) {
+	assert.Implements(t, (*DialerOption)(nil), &LocalAddrOption{})
+}
+
+func TestLocalAddr(t *testing.T) {
+	uri := &URI{}
+
+	result := LocalAddr(uri)
+
+	assert.Equal(t, &LocalAddrOption{
+		URI: uri,
+	}, result)
+}
+
+func TestLocalAddrOptionDialApply(t *testing.T) {
+	addr := &mockAddr{}
+	dialer := &net.Dialer{}
+	obj := &LocalAddrOption{
+		Addr: addr,
+	}
+
+	obj.DialApply(dialer)
+
+	assert.Equal(t, &net.Dialer{
+		LocalAddr: addr,
+	}, dialer)
 }

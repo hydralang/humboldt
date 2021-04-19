@@ -21,11 +21,12 @@ import (
 
 // Patch points for isolating functions during testing.
 var (
-	lookupIP            func(string) ([]net.IP, error)            = net.LookupIP
-	lookupPort          func(string, string) (int, error)         = net.LookupPort
-	lookupSecurity      func(string) Mechanism                    = LookupSecurity
-	lookupTransport     func(string) Mechanism                    = LookupTransport
-	mkDialerPatch       func(opts []DialerOption) iDialer         = mkDialer
-	mkListenConfigPatch func(opts []ListenerOption) iListenConfig = mkListenConfig
-	setsockoptInt       func(fd, level, opt, value int) error     = syscall.SetsockoptInt
+	lookupIP            func(string) ([]net.IP, error)                                          = net.LookupIP
+	lookupPort          func(string, string) (int, error)                                       = net.LookupPort
+	lookupSecurity      func(string) Mechanism                                                  = LookupSecurity
+	lookupTransport     func(string) Mechanism                                                  = LookupTransport
+	mkDialerPatch       func(opts []DialerOption, filt dialerFilter) (iDialer, error)           = mkDialer
+	mkListenConfigPatch func(opts []ListenerOption, filt listenerFilter) (iListenConfig, error) = mkListenConfig
+	setsockoptInt       func(fd, level, opt, value int) error                                   = syscall.SetsockoptInt
+	resolveTCPAddr      func(network, address string) (*net.TCPAddr, error)                     = net.ResolveTCPAddr
 )

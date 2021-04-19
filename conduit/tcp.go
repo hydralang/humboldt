@@ -16,6 +16,7 @@ package conduit
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/url"
 	"syscall"
@@ -41,6 +42,40 @@ func tcpReuseAddr(network, address string, c syscall.RawConn) error {
 	})
 }
 
+// tcpFilter is an implementation of dialerFilter that catches the
+// LocalAddr option and converts the URI appropriately to fill in the
+// LocalAddr of the Dialer.
+type tcpFilter int
+
+// DialFilter filters the option.
+func (f tcpFilter) DialFilter(o DialerOption) error {
+	la, ok := o.(*LocalAddrOption)
+	if !ok {
+		return nil
+	}
+
+	// Make sure the URI is canonical
+	if !la.URI.IsCanonical() {
+		return fmt.Errorf("local address %q: %w", la.URI, ErrNotCanonical)
+	} else if la.URI.Transport != "tcp" {
+		return fmt.Errorf("local address %q: %w", la.URI, ErrUnknownTransport)
+	}
+
+	// Get the TCPAddr
+	addr, err := resolveTCPAddr("tcp", la.URI.Host)
+	if err != nil {
+		return fmt.Errorf("local address %q: %w", la.URI, err)
+	}
+
+	// Zero the port
+	addr.Port = 0
+
+	// Save it
+	la.Addr = addr
+
+	return nil
+}
+
 // TCPMech is a mechanism for TCP connections.
 type TCPMech int
 
@@ -50,7 +85,10 @@ type TCPMech int
 // the conduit will still be in the appropriate state.
 func (t TCPMech) Dial(ctx context.Context, config Config, u *URI, opts []DialerOption) (*Conduit, error) {
 	// Construct the dialer
-	dialer := mkDialerPatch(opts)
+	dialer, err := mkDialerPatch(opts, tcpFilter(0))
+	if err != nil {
+		return nil, err
+	}
 
 	// Dial the target
 	c, err := dialer.DialContext(ctx, "tcp", u.Host)
@@ -75,7 +113,10 @@ func (t TCPMech) Dial(ctx context.Context, config Config, u *URI, opts []DialerO
 func (t TCPMech) Listen(ctx context.Context, config Config, u *URI, opts []ListenerOption) (Listener, error) {
 	// Construct the listener config
 	opts = append(opts, control{Control: tcpReuseAddr})
-	lc := mkListenConfigPatch(opts)
+	lc, err := mkListenConfigPatch(opts, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	// Create the listener
 	l, err := lc.Listen(ctx, "tcp", u.Host)

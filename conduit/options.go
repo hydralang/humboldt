@@ -39,18 +39,31 @@ type DialerOption interface {
 	DialApply(d *net.Dialer)
 }
 
+// dialerFilter is a filter that may be applied to DialerOption
+// instances.  This is used by mechanisms supporting the LocalAddr
+// option.
+type dialerFilter interface {
+	// DialFilter filters the option.
+	DialFilter(o DialerOption) error
+}
+
 // mkDialer constructs a net.Dialer from the specified options and
 // returns it.  The return type is an iDialer, allowing for testing in
 // isolation.
-func mkDialer(opts []DialerOption) iDialer {
+func mkDialer(opts []DialerOption, filt dialerFilter) (iDialer, error) {
 	result := &net.Dialer{}
 
 	// Apply options
 	for _, opt := range opts {
+		if filt != nil {
+			if err := filt.DialFilter(opt); err != nil {
+				return nil, err
+			}
+		}
 		opt.DialApply(result)
 	}
 
-	return result
+	return result, nil
 }
 
 // iListenConfig is an interface matching that provided by
@@ -71,18 +84,31 @@ type ListenerOption interface {
 	ListenApply(lc *net.ListenConfig)
 }
 
+// listenerFilter is a filter that may be applied to ListenerOption
+// instances.  This is used by mechanisms supporting the LocalAddr
+// option.
+type listenerFilter interface {
+	// ListenFilter filters the option.
+	ListenFilter(o ListenerOption) error
+}
+
 // mkListenConfig constructs a net.ListenConfig from the specified
 // options and returns it.  The return type is an iListenConfig,
 // allowing for testing in isolation.
-func mkListenConfig(opts []ListenerOption) iListenConfig {
+func mkListenConfig(opts []ListenerOption, filt listenerFilter) (iListenConfig, error) {
 	result := &net.ListenConfig{}
 
 	// Apply options
 	for _, opt := range opts {
+		if filt != nil {
+			if err := filt.ListenFilter(opt); err != nil {
+				return nil, err
+			}
+		}
 		opt.ListenApply(result)
 	}
 
-	return result
+	return result, nil
 }
 
 // KeepAlive is an option for Dial and Listen that sets the KeepAlive
@@ -113,4 +139,27 @@ func (c control) DialApply(d *net.Dialer) {
 // ListenApply applies the option to a net.ListenConfig.
 func (c control) ListenApply(lc *net.ListenConfig) {
 	lc.Control = c.Control
+}
+
+// LocalAddrOption is an option that sets the LocalAddr configuration
+// value for a Dialer.  It requires validation by the mechanism, so
+// may not be used by some mechanisms.
+type LocalAddrOption struct {
+	URI  *URI     // The URI for the local side of the connection
+	Addr net.Addr // The address
+}
+
+// LocalAddr returns an option that sets the LocalAddr configuration
+// value for the Dialer.  It is validated by the mechanism, and may be
+// unsupported by some mechanisms; mechanisms that do not support
+// LocalAddr should ignore the option.
+func LocalAddr(uri *URI) *LocalAddrOption {
+	return &LocalAddrOption{
+		URI: uri,
+	}
+}
+
+// DialApply applies the option to a net.Dialer.
+func (la *LocalAddrOption) DialApply(d *net.Dialer) {
+	d.LocalAddr = la.Addr
 }
